@@ -184,10 +184,6 @@
                     </div>
                     
                     <!-- Alert Message -->
-                    <div class="alert-message alert-warning" id="sqlNote">
-                        <p><strong>Note:</strong> If you encounter an error about the "no_of_serving" column, please run the <code>run_fix_menu_table.bat</code> script to update your database schema.</p>
-        </div>
-                    
                     <div class="alert-message" id="alertMessage" runat="server" visible="false">
                         <asp:Literal ID="AlertLiteral" runat="server"></asp:Literal>
                     </div>

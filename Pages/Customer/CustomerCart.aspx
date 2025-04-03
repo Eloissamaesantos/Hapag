@@ -65,15 +65,15 @@
                         <div class="cart-item-price">PHP <%# Format(CDec(Eval("price")), "0.00") %></div>
                         <div class="cart-item-quantity">
                             <div class="quantity-control">
-                                <button type="button" class="quantity-btn minus" onclick="updateCartQuantity(this, <%# Eval("cart_id") %>, -1)">-</button>
+                                <button type="button" class="quantity-btn minus" onclick="updateCartQuantity(this, '<%# Eval("cart_id") %>', -1)">-</button>
                                 <input type="number" class="quantity-input" value='<%# Eval("quantity") %>' min="1" max="99" 
-                                       onchange="updateCartQuantity(this, <%# Eval("cart_id") %>, 0)" />
-                                <button type="button" class="quantity-btn plus" onclick="updateCartQuantity(this, <%# Eval("cart_id") %>, 1)">+</button>
+                                       onchange="updateCartQuantity(this, '<%# Eval("cart_id") %>', 0)" />
+                                <button type="button" class="quantity-btn plus" onclick="updateCartQuantity(this, '<%# Eval("cart_id") %>', 1)">+</button>
                             </div>
                         </div>
                         <div class="cart-item-total">PHP <%# Format(CDec(Eval("price")) * CDec(Eval("quantity")), "0.00") %></div>
                         <div class="cart-item-actions">
-                            <button type="button" class="remove-btn" onclick="removeCartItem(<%# Eval("cart_id") %>)">
+                            <button type="button" class="remove-btn" onclick="removeCartItem('<%# Eval("cart_id") %>')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -317,57 +317,40 @@
                     <div class="payment-section">
                         <h4>Payment Method</h4>
                         <div class="payment-options">
-                            <div class="payment-method">
-                                <input type="radio" name="paymentMethod" id="cashPayment" value="cash" checked onclick="toggleGCashDetails()" />
-                                <div class="method-content">
-                                    <i class="fas fa-money-bill-wave"></i>
-                                    <span>Cash on Delivery</span>
-                                </div>
+                            <div class="payment-option">
+                                <input type="radio" id="cashPayment" name="paymentMethod" value="cash" checked="checked" />
+                                <label for="cashPayment">
+                                    <span class="payment-name">Cash on Delivery</span>
+                                </label>
                             </div>
-                            <div class="payment-method">
-                                <input type="radio" name="paymentMethod" id="gcashPayment" value="gcash" onclick="toggleGCashDetails()" />
-                                <div class="method-content">
-                                    <i class="fas fa-mobile-alt"></i>
-                                    <span>GCash</span>
-                        </div>
+                            <div class="payment-option">
+                                <input type="radio" id="gcashPayment" name="paymentMethod" value="gcash" />
+                                <label for="gcashPayment">
+                                    <span class="payment-name">GCash</span>
+                                </label>
                     </div>
                 </div>
                 
-                        <!-- GCash Payment Details -->
+                        <!-- GCash Details (Initially Hidden) -->
                         <div id="gcashDetails" style="display: none;" class="gcash-details">
-                            <!-- GCash QR and Account Info -->
-                            <div class="gcash-qr-container">
-                                <h5>Scan QR Code to Pay</h5>
-                                <img src="<%=ResolveUrl("~/Assets/Images/GCASHQR.png")%>" alt="GCash QR Code" class="gcash-qr" />
-                                <div class="gcash-account-info">
-                                    <p><strong>Account Number:</strong> 09310960852</p>
-                                    <p>Please complete the payment before submitting your order.</p>
-                    </div>
-                    </div>
-                            
-                            <!-- Reference Number Field -->
                             <div class="form-group">
-                                <label for="referenceNumber">Reference Number<span class="required">*</span></label>
-                                <input type="text" id="referenceNumber" name="referenceNumber" class="form-control" placeholder="Enter GCash reference number" />
+                                <label for="referenceNumber">Reference Number:</label>
+                                <input type="text" id="referenceNumber" class="form-control" />
                     </div>
-                            
-                            <!-- Sender Name Field -->
                             <div class="form-group">
-                                <label for="senderName">Sender Name<span class="required">*</span></label>
-                                <input type="text" id="senderName" name="senderName" class="form-control" placeholder="Enter sender's name" />
+                                <label for="senderName">Sender Name:</label>
+                                <input type="text" id="senderName" class="form-control" />
                     </div>
-                            
-                            <!-- Sender Number Field -->
                             <div class="form-group">
-                                <label for="senderNumber">Sender's GCash Number<span class="required">*</span></label>
-                                <input type="text" id="senderNumber" name="senderNumber" class="form-control" placeholder="Enter sender's GCash number" />
-                </div>
-                        </div>
+                                <label for="senderNumber">Sender Number:</label>
+                                <input type="text" id="senderNumber" class="form-control" />
+                    </div>
+                    </div>
 
                         <!-- Place Order Button -->
                         <div class="place-order-section">
                             <asp:Button ID="PlaceOrderButton" runat="server" Text="Place Order" CssClass="btn btn-success" OnClick="PlaceOrderButton_Click" />
-                        </div>
+                </div>
                     </div>
                 </asp:Panel>
             </div>
@@ -1191,30 +1174,6 @@
             font-size: 12px;
             margin-top: 5px;
         }
-
-        .gcash-qr-container {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-        }
-
-        .gcash-qr {
-            max-width: 200px;
-            height: auto;
-            margin: 10px auto;
-            border: 1px solid #ddd;
-        }
-
-        .gcash-account-info {
-            margin-top: 10px;
-            font-size: 14px;
-        }
-
-        .gcash-account-info p {
-            margin: 5px 0;
-        }
     </style>
 
     <script type="text/javascript">
@@ -1445,15 +1404,6 @@
                 addressList.addEventListener('change', function() {
                     calculateDistanceFromSelectedAddress();
                 });
-            }
-
-            // Make sure GCash details are properly shown/hidden on page load
-            toggleGCashDetails();
-            
-            // Initialize other page components if needed
-            if (document.getElementById('standardDelivery')) {
-                document.getElementById('standardDelivery').checked = true;
-                updateDeliveryOption('standard');
             }
         });
         
