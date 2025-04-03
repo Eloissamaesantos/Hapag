@@ -1,5 +1,5 @@
 ﻿<%@ Page Language="VB" AutoEventWireup="false" CodeFile="CustomerCart.aspx.vb" Inherits="Pages_Customer_CustomerCart" MasterPageFile="~/Pages/Customer/CustomerTemplate.master" %>
-<%@ Register Assembly="System.Web.Extensions, Version=3.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" Namespace="System.Web.UI" TagPrefix="asp" %>
+<%@ Register Assembly="System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" Namespace="System.Web.UI" TagPrefix="asp" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
     <div class="content-container">
@@ -10,6 +10,9 @@
         <asp:HiddenField ID="DiscountIdHidden" runat="server" Value="0" />
         <asp:HiddenField ID="DiscountValueHidden" runat="server" Value="0" />
         <asp:HiddenField ID="DeliveryAddressHidden" runat="server" Value="" />
+        <asp:HiddenField ID="RestaurantLocationHidden" runat="server" Value="14.651493,121.049888" />
+        <asp:HiddenField ID="AddressCoordinatesHidden" runat="server" Value="" />
+        <asp:HiddenField ID="DistanceHidden" runat="server" Value="0" />
 
         <!-- Content Header -->
         <div class="content-header">
@@ -62,15 +65,15 @@
                         <div class="cart-item-price">PHP <%# Format(CDec(Eval("price")), "0.00") %></div>
                         <div class="cart-item-quantity">
                             <div class="quantity-control">
-                                <button type="button" class="quantity-btn minus" onclick='updateCartQuantity(this, "<%# Eval("cart_id") %>", -1)'>-</button>
+                                <button type="button" class="quantity-btn minus" onclick="updateCartQuantity(this, '<%# Eval("cart_id") %>', -1)">-</button>
                                 <input type="number" class="quantity-input" value='<%# Eval("quantity") %>' min="1" max="99" 
-                                       onchange='updateCartQuantity(this, "<%# Eval("cart_id") %>", 0)' />
-                                <button type="button" class="quantity-btn plus" onclick='updateCartQuantity(this, "<%# Eval("cart_id") %>", 1)'>+</button>
+                                       onchange="updateCartQuantity(this, '<%# Eval("cart_id") %>', 0)" />
+                                <button type="button" class="quantity-btn plus" onclick="updateCartQuantity(this, '<%# Eval("cart_id") %>', 1)">+</button>
                             </div>
                         </div>
                         <div class="cart-item-total">PHP <%# Format(CDec(Eval("price")) * CDec(Eval("quantity")), "0.00") %></div>
                         <div class="cart-item-actions">
-                            <button type="button" class="remove-btn" onclick='removeCartItem("<%# Eval("cart_id") %>")'>
+                            <button type="button" class="remove-btn" onclick="removeCartItem('<%# Eval("cart_id") %>')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -185,7 +188,8 @@
                     <div class="address-selection">
                         <h4>Select Delivery Address</h4>
                         <asp:RadioButtonList ID="AddressRadioList" runat="server" CssClass="address-radio-list" 
-                            AutoPostBack="false" RepeatLayout="Flow" OnSelectedIndexChanged="AddressRadioList_SelectedIndexChanged">
+                            AutoPostBack="true" RepeatLayout="Flow" 
+                            OnSelectedIndexChanged="AddressRadioList_SelectedIndexChanged">
                         </asp:RadioButtonList>
                         
                         <asp:Panel ID="NoAddressPanel" runat="server" Visible="false" CssClass="no-address">
@@ -232,13 +236,30 @@
                                 ValidationGroup="AddressGroup"></asp:RequiredFieldValidator>
                         </div>
                         <div class="form-group">
-                            <label for="CityTextBox">City</label>
-                            <asp:TextBox ID="CityTextBox" runat="server" CssClass="form-control" placeholder="City"></asp:TextBox>
+                            <label for="CityDropDown">City/Municipality</label>
+                            <asp:DropDownList ID="CityDropDown" runat="server" CssClass="form-control" AutoPostBack="false" onchange="updateAddressCoordinates()">
+                                <asp:ListItem Text="-- Select City --" Value="" Selected="True"></asp:ListItem>
+                                <asp:ListItem Text="Quezon City" Value="Quezon City,14.676041,121.043700"></asp:ListItem>
+                                <asp:ListItem Text="Manila" Value="Manila,14.599512,120.984222"></asp:ListItem>
+                                <asp:ListItem Text="Makati" Value="Makati,14.554729,121.024445"></asp:ListItem>
+                                <asp:ListItem Text="Pasig" Value="Pasig,14.576073,121.085657"></asp:ListItem>
+                                <asp:ListItem Text="Taguig" Value="Taguig,14.524756,121.050760"></asp:ListItem>
+                                <asp:ListItem Text="Pasay" Value="Pasay,14.537598,121.000000"></asp:ListItem>
+                                <asp:ListItem Text="Parañaque" Value="Parañaque,14.499892,121.019837"></asp:ListItem>
+                                <asp:ListItem Text="Caloocan" Value="Caloocan,14.649813,121.002288"></asp:ListItem>
+                                <asp:ListItem Text="Marikina" Value="Marikina,14.649881,121.102859"></asp:ListItem>
+                                <asp:ListItem Text="Mandaluyong" Value="Mandaluyong,14.580507,121.040095"></asp:ListItem>
+                            </asp:DropDownList>
                             <asp:RequiredFieldValidator ID="CityValidator" runat="server" 
-                                ControlToValidate="CityTextBox" 
+                                ControlToValidate="CityDropDown" 
                                 ErrorMessage="City is required" 
                                 Display="Dynamic" CssClass="text-danger"
-                                ValidationGroup="AddressGroup"></asp:RequiredFieldValidator>
+                                ValidationGroup="AddressGroup" InitialValue=""></asp:RequiredFieldValidator>
+                            <div class="map-preview-container" id="mapPreviewContainer" style="display:none; margin-top: 10px;">
+                                <p>Approximate Location: <span id="selectedLocationText"></span></p>
+                                <p>Estimated Distance: <span id="estimatedDistanceText">calculating...</span></p>
+                                <p>Delivery Fee: <span id="estimatedDeliveryFeeText">PHP 0.00</span></p>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="PostalCodeTextBox">Postal Code</label>
@@ -247,6 +268,8 @@
                         <div class="form-group">
                             <asp:CheckBox ID="DefaultAddressCheckBox" runat="server" Text="Set as default address" CssClass="default-address-checkbox" />
                         </div>
+                        <asp:HiddenField ID="AddressCoordinatesField" runat="server" Value="" />
+                        <asp:HiddenField ID="EstimatedDistanceField" runat="server" Value="0" />
                         <div class="address-form-actions">
                             <asp:Button ID="SaveAddressButton" runat="server" Text="Save Address" CssClass="btn btn-primary" OnClick="SaveAddressButton_Click" ValidationGroup="AddressGroup" />
                             <asp:Button ID="CancelAddressButton" runat="server" Text="Cancel" CssClass="btn btn-outline-secondary" OnClick="CancelAddressButton_Click" CausesValidation="false" />
@@ -255,28 +278,32 @@
 
                     <!-- Delivery Type Selection -->
                     <div class="delivery-options">
+                        <div class="calculated-distance" id="calculatedDistanceDisplay" runat="server" visible="false">
+                            <p>Estimated distance: <span id="distanceText">calculating...</span></p>
+                        </div>
+                        
                         <div class="delivery-option">
-                            <input type="radio" id="standardDelivery" name="deliveryOption" value="standard" checked="checked" onchange="updateDeliveryFee(0)" />
+                            <input type="radio" id="standardDelivery" name="deliveryOption" value="standard" checked="checked" onchange="updateDeliveryOption('standard')" />
                             <label for="standardDelivery">
                                 <span class="delivery-name">Standard Delivery</span>
                                 <span class="delivery-info">Regular delivery within 45-60 minutes</span>
-                                <span class="delivery-fee">Free</span>
+                                <span class="delivery-fee" id="standardFeeDisplay">Fee: PHP <asp:Literal ID="StandardFeeLiteral" runat="server">0.00</asp:Literal></span>
                             </label>
                         </div>
                         <div class="delivery-option">
-                            <input type="radio" id="priorityDelivery" name="deliveryOption" value="priority" onchange="updateDeliveryFee(50)" />
+                            <input type="radio" id="priorityDelivery" name="deliveryOption" value="priority" onchange="updateDeliveryOption('priority')" />
                             <label for="priorityDelivery">
                                 <span class="delivery-name">Priority Delivery</span>
                                 <span class="delivery-info">Express delivery within 20-30 minutes</span>
-                                <span class="delivery-fee">PHP 50.00</span>
+                                <span class="delivery-fee" id="priorityFeeDisplay">Fee: PHP <asp:Literal ID="PriorityFeeLiteral" runat="server">50.00</asp:Literal></span>
                             </label>
                         </div>
                         <div class="delivery-option">
-                            <input type="radio" id="scheduledDelivery" name="deliveryOption" value="scheduled" onchange="updateDeliveryFee(0)" />
+                            <input type="radio" id="scheduledDelivery" name="deliveryOption" value="scheduled" onchange="updateDeliveryOption('scheduled')" />
                             <label for="scheduledDelivery">
                                 <span class="delivery-name">Scheduled Delivery</span>
                                 <span class="delivery-info">Choose your preferred delivery time</span>
-                                <span class="delivery-fee">Free</span>
+                                <span class="delivery-fee" id="scheduledFeeDisplay">Fee: PHP <asp:Literal ID="ScheduledFeeLiteral" runat="server">0.00</asp:Literal></span>
                             </label>
                         </div>
                         <div id="scheduledTimeContainer" style="display: none;" class="scheduled-time-container">
@@ -1350,64 +1377,32 @@
 
         // Delivery options functionality
         document.addEventListener('DOMContentLoaded', function() {
-            // Scheduled delivery time handling
-            const scheduledDelivery = document.getElementById('scheduledDelivery');
-            const standardDelivery = document.getElementById('standardDelivery');
-            const priorityDelivery = document.getElementById('priorityDelivery');
-            const scheduledTimeContainer = document.getElementById('scheduledTimeContainer');
-            const scheduledTime = document.getElementById('scheduledTime');
-            const scheduledTimeHidden = document.getElementById('<%= ScheduledTimeHidden.ClientID %>');
-            const deliveryTypeHidden = document.getElementById('<%= DeliveryTypeHidden.ClientID %>');
-            const paymentScheduledTimeRow = document.getElementById('PaymentScheduledTimeRow');
-            const paymentScheduledTimeLiteral = document.getElementById('PaymentScheduledTimeLiteral');
-            const paymentDeliveryTypeLiteral = document.getElementById('PaymentDeliveryTypeLiteral');
+            // Load Google Maps API
+            loadGoogleMaps();
             
-            if (scheduledDelivery) {
-                scheduledDelivery.addEventListener('change', function() {
-                    scheduledTimeContainer.style.display = 'block';
-                    deliveryTypeHidden.value = 'scheduled';
-                    paymentDeliveryTypeLiteral.textContent = 'Scheduled Delivery';
-                    
-                    // Set minimum datetime to 1 hour from now
-                    const now = new Date();
-                    now.setHours(now.getHours() + 1);
-                    const minDateTime = now.toISOString().slice(0, 16);
-                    scheduledTime.setAttribute('min', minDateTime);
-                    
-                    if (scheduledTime.value) {
-                        paymentScheduledTimeRow.style.display = 'flex';
-                        paymentScheduledTimeLiteral.textContent = formatScheduledTime(scheduledTime.value);
+            // Listen for delivery option changes
+            document.querySelectorAll('input[name="deliveryOption"]').forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'scheduled') {
+                        toggleScheduledTime();
                     }
                 });
-            }
-            
-            if (standardDelivery) {
-                standardDelivery.addEventListener('change', function() {
-                    scheduledTimeContainer.style.display = 'none';
-                    deliveryTypeHidden.value = 'standard';
-                    paymentDeliveryTypeLiteral.textContent = 'Standard Delivery';
-                    paymentScheduledTimeRow.style.display = 'none';
-                });
-            }
-            
-            if (priorityDelivery) {
-                priorityDelivery.addEventListener('change', function() {
-                    scheduledTimeContainer.style.display = 'none';
-                    deliveryTypeHidden.value = 'priority';
-                    paymentDeliveryTypeLiteral.textContent = 'Priority Delivery';
-                    paymentScheduledTimeRow.style.display = 'none';
-                });
-            }
-            
-            if (scheduledTime) {
-                scheduledTime.addEventListener('change', function() {
-                    scheduledTimeHidden.value = this.value;
-                    if (this.value) {
-                        paymentScheduledTimeRow.style.display = 'flex';
-                        paymentScheduledTimeLiteral.textContent = formatScheduledTime(this.value);
-                    } else {
-                        paymentScheduledTimeRow.style.display = 'none';
+            });
+
+            // Listen for payment method changes
+            document.querySelectorAll('input[name="paymentMethod"]').forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'gcash') {
+                        toggleGCashDetails();
                     }
+                });
+            });
+            
+            // Listen for address selection changes
+            var addressList = document.getElementById('<%= AddressRadioList.ClientID %>');
+            if (addressList) {
+                addressList.addEventListener('change', function() {
+                    calculateDistanceFromSelectedAddress();
                 });
             }
         });
@@ -1436,15 +1431,53 @@
         }
 
         function updateGrandTotal() {
-            var subtotal = parseFloat(document.getElementById('OrderSummarySubtotalLiteral').textContent);
-            var discount = 0;
-            if (document.getElementById('OrderSummaryDiscountRow').style.display !== 'none') {
-                discount = parseFloat(document.getElementById('OrderSummaryDiscountLiteral').textContent);
+            try {
+                // Get subtotal from the cart summary
+                var subtotal = parseFloat(document.getElementById('<%= CartSummarySubtotalLiteral.ClientID %>').textContent);
+                if (isNaN(subtotal)) subtotal = 0;
+                
+                // Get discount if applicable
+                var discount = 0;
+                var discountRow = document.getElementById('<%= DiscountRow.ClientID %>');
+                if (discountRow && window.getComputedStyle(discountRow).display !== 'none') {
+                    var discountText = document.getElementById('<%= DiscountAmountLiteral.ClientID %>').textContent;
+                    discount = parseFloat(discountText);
+                    if (isNaN(discount)) discount = 0;
+                }
+                
+                // Get promotion discount if applicable
+                var promotionDiscount = 0;
+                var promotionRow = document.getElementById('<%= PromotionRow.ClientID %>');
+                if (promotionRow && window.getComputedStyle(promotionRow).display !== 'none') {
+                    var promotionText = document.getElementById('<%= PromotionAmountLiteral.ClientID %>').textContent;
+                    promotionDiscount = parseFloat(promotionText);
+                    if (isNaN(promotionDiscount)) promotionDiscount = 0;
+                }
+                
+                // Get deal discount if applicable
+                var dealDiscount = 0;
+                var dealRow = document.getElementById('<%= DealRow.ClientID %>');
+                if (dealRow && window.getComputedStyle(dealRow).display !== 'none') {
+                    var dealText = document.getElementById('<%= DealAmountLiteral.ClientID %>').textContent;
+                    dealDiscount = parseFloat(dealText);
+                    if (isNaN(dealDiscount)) dealDiscount = 0;
+                }
+                
+                // Get delivery fee from hidden field
+                var deliveryFee = parseFloat(document.getElementById('<%= DeliveryFeeHidden.ClientID %>').value);
+                if (isNaN(deliveryFee)) deliveryFee = 0;
+                
+                // Calculate grand total
+                var grandTotal = subtotal - discount - promotionDiscount - dealDiscount + deliveryFee;
+                if (grandTotal < 0) grandTotal = 0; // Ensure the total isn't negative
+                
+                // Update the cart summary total
+                document.getElementById('<%= CartSummaryTotalLiteral.ClientID %>').textContent = grandTotal.toFixed(2);
+                
+                console.log("Grand total updated: PHP " + grandTotal.toFixed(2));
+            } catch (e) {
+                console.error("Error updating grand total: ", e);
             }
-            var deliveryFee = parseFloat(document.getElementById('DeliveryFeeHidden').value);
-            
-            var grandTotal = subtotal - discount + deliveryFee;
-            document.getElementById('GrandTotalDisplay').textContent = 'PHP ' + grandTotal.toFixed(2);
         }
 
         function showNewAddressForm() {
@@ -1473,32 +1506,319 @@
             details.style.display = gcashPayment.checked ? 'block' : 'none';
         }
 
-        // Add event listeners when the page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Listen for delivery option changes
-            document.querySelectorAll('input[name="deliveryOption"]').forEach(function(radio) {
-                radio.addEventListener('change', function() {
-                    if (this.value === 'scheduled') {
-                        toggleScheduledTime();
-                    }
-                });
-            });
-
-            // Listen for payment method changes
-            document.querySelectorAll('input[name="paymentMethod"]').forEach(function(radio) {
-                radio.addEventListener('change', function() {
-                    if (this.value === 'gcash') {
-                        toggleGCashDetails();
-                    }
-                });
-            });
-        });
-
         // Add a function to handle image loading errors
         function handleImageError(img) {
             // If the image fails to load, use a default image or hide it
             img.onerror = null; // Prevent infinite loop
             img.src = '<%=ResolveUrl("~/Assets/Images/default-food.jpg") %>'; // Use an existing default image
+        }
+
+        // Load Google Maps API asynchronously
+        function loadGoogleMaps() {
+            var script = document.createElement('script');
+            script.src = 'https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initializeGeocoder';
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+        
+        // Initialize geocoder when Google Maps API loads
+        function initializeGeocoder() {
+            window.geocoder = new google.maps.Geocoder();
+            
+            // Try to calculate distance when geocoder is initialized
+            calculateDistanceFromSelectedAddress();
+        }
+        
+        // Calculate distance when address is selected
+        function calculateDistanceFromSelectedAddress() {
+            try {
+                var selectedAddress = "";
+                var addressList = document.getElementById('<%= AddressRadioList.ClientID %>');
+                
+                if (addressList) {
+                    // Find the selected radio button using the ASP.NET naming convention
+                    var selectedRadio = document.querySelector('input[name$="' + '<%= AddressRadioList.UniqueID %>' + '"]:checked');
+                    if (selectedRadio) {
+                        // Get the associated label
+                        var label = selectedRadio.nextSibling;
+                        while (label && label.nodeName !== 'LABEL') {
+                            label = label.nextSibling;
+                        }
+                        
+                        if (label) {
+                            // Extract the address from the label
+                            selectedAddress = label.textContent || label.innerText;
+                            selectedAddress = selectedAddress.replace(/^\s+|\s+$/g, ''); // Trim whitespace
+                            
+                            console.log("Selected address: " + selectedAddress);
+                            
+                            // Store address in hidden field
+                            document.getElementById('<%= DeliveryAddressHidden.ClientID %>').value = selectedAddress;
+                            
+                            // Check if we have coordinates in the value
+                            var selectedValue = selectedRadio.value || "";
+                            if (selectedValue.includes(":")) {
+                                var parts = selectedValue.split(":");
+                                if (parts.length > 1 && parts[1].includes(",")) {
+                                    var coords = parts[1].split(",");
+                                    if (coords.length === 2) {
+                                        var lat = parseFloat(coords[0]);
+                                        var lng = parseFloat(coords[1]);
+                                        if (!isNaN(lat) && !isNaN(lng)) {
+                                            // Store the coordinates
+                                            document.getElementById('<%= AddressCoordinatesHidden.ClientID %>').value = lat + "," + lng;
+                                            // Calculate distance using these coordinates
+                                            calculateDistanceFromCoordinates(lat, lng);
+                                            return; // Exit function as we've handled this case
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // If we don't have coordinates in the value, geocode the address
+                            if (window.geocoder) {
+                                // Show calculating message
+                                document.getElementById('distanceText').textContent = 'calculating...';
+                                document.getElementById('<%= calculatedDistanceDisplay.ClientID %>').style.display = 'block';
+                                
+                                // Create a geocoding address from city and address line
+                                var geocodingAddress = selectedAddress.replace(/<br\s*\/?>/gi, ', ');
+                                geocodingAddress = geocodingAddress.replace(/\s+/g, ' ');
+                                
+                                console.log("Geocoding address: " + geocodingAddress);
+                                
+                                window.geocoder.geocode({ 'address': geocodingAddress }, function(results, status) {
+                                    if (status === 'OK') {
+                                        var addressCoordinates = results[0].geometry.location;
+                                        var lat = addressCoordinates.lat();
+                                        var lng = addressCoordinates.lng();
+                                        
+                                        // Store coordinates
+                                        document.getElementById('<%= AddressCoordinatesHidden.ClientID %>').value = lat + ',' + lng;
+                                        
+                                        // Calculate distance
+                                        calculateDistanceFromCoordinates(lat, lng);
+                                    } else {
+                                        console.error('Geocode was not successful for the following reason: ' + status);
+                                        document.getElementById('distanceText').textContent = 'Could not determine distance';
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Error in calculateDistanceFromSelectedAddress: ", e);
+                document.getElementById('distanceText').textContent = 'Error calculating distance';
+            }
+        }
+        
+        // Calculate distance from coordinates and update fees
+        function calculateDistanceFromCoordinates(lat2, lng2) {
+            try {
+                // Get restaurant coordinates
+                var restaurantCoords = document.getElementById('<%= RestaurantLocationHidden.ClientID %>').value.split(',');
+                var lat1 = parseFloat(restaurantCoords[0]);
+                var lng1 = parseFloat(restaurantCoords[1]);
+                
+                if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) {
+                    console.error("Invalid coordinates for distance calculation");
+                    document.getElementById('distanceText').textContent = 'Invalid coordinates';
+                    return;
+                }
+                
+                // Calculate distance using Haversine formula
+                var R = 6371; // Radius of the Earth in km
+                var dLat = (lat2 - lat1) * Math.PI / 180;
+                var dLng = (lng2 - lng1) * Math.PI / 180;
+                var a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                var distance = R * c; // Distance in km
+                
+                // Update distance display
+                document.getElementById('distanceText').textContent = distance.toFixed(2) + ' km';
+                document.getElementById('<%= calculatedDistanceDisplay.ClientID %>').style.display = 'block';
+                
+                // Update distance hidden field
+                document.getElementById('<%= DistanceHidden.ClientID %>').value = distance.toFixed(2);
+                
+                // Calculate and update delivery fees
+                updateDeliveryFees(distance);
+                
+                console.log("Distance calculated: " + distance.toFixed(2) + " km");
+            } catch (e) {
+                console.error("Error calculating distance: ", e);
+                document.getElementById('distanceText').textContent = 'Error calculating distance';
+            }
+        }
+        
+        // Calculate distance based on coordinates
+        function calculateDistance(lat2, lng2) {
+            try {
+                // Get restaurant coordinates
+                var restaurantCoords = document.getElementById('<%= RestaurantLocationHidden.ClientID %>').value.split(',');
+                var lat1 = parseFloat(restaurantCoords[0]);
+                var lng1 = parseFloat(restaurantCoords[1]);
+                
+                if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) {
+                    console.error("Invalid coordinates for distance calculation");
+                    document.getElementById('distanceText').textContent = 'Invalid coordinates';
+                    return 0;
+                }
+                
+                // Calculate distance using Haversine formula
+                var R = 6371; // Radius of the Earth in km
+                var dLat = (lat2 - lat1) * Math.PI / 180;
+                var dLng = (lng2 - lng1) * Math.PI / 180;
+                var a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                var distance = R * c; // Distance in km
+                
+                // Show the calculated distance display
+                document.getElementById('<%= calculatedDistanceDisplay.ClientID %>').style.display = 'block';
+                document.getElementById('distanceText').textContent = distance.toFixed(2) + ' km';
+                
+                console.log("Distance calculated: " + distance.toFixed(2) + " km");
+                return distance;
+            } catch (e) {
+                console.error("Error in calculateDistance: ", e);
+                document.getElementById('distanceText').textContent = 'Error calculating distance';
+                return 0;
+            }
+        }
+        
+        // Update all delivery fee options based on distance
+        function updateDeliveryFees(distance) {
+            try {
+                // Base fee calculation
+                var baseFee = calculateDeliveryFee(distance);
+                
+                // Priority delivery is 1.5x the standard fee
+                var priorityFee = Math.ceil(baseFee * 1.5);
+                
+                // Update fee displays
+                document.getElementById('<%= StandardFeeLiteral.ClientID %>').textContent = baseFee.toFixed(2);
+                document.getElementById('standardFeeDisplay').innerHTML = 'Fee: PHP <strong>' + baseFee.toFixed(2) + '</strong>';
+                
+                document.getElementById('<%= PriorityFeeLiteral.ClientID %>').textContent = priorityFee.toFixed(2);
+                document.getElementById('priorityFeeDisplay').innerHTML = 'Fee: PHP <strong>' + priorityFee.toFixed(2) + '</strong>';
+                
+                document.getElementById('<%= ScheduledFeeLiteral.ClientID %>').textContent = baseFee.toFixed(2);
+                document.getElementById('scheduledFeeDisplay').innerHTML = 'Fee: PHP <strong>' + baseFee.toFixed(2) + '</strong>';
+                
+                // Update the currently selected option
+                var selectedOption = document.querySelector('input[name="deliveryOption"]:checked');
+                if (selectedOption) {
+                    updateDeliveryOption(selectedOption.value);
+                } else {
+                    // Default to standard if none selected
+                    document.getElementById('standardDelivery').checked = true;
+                    updateDeliveryOption('standard');
+                }
+                
+                console.log("Delivery fees updated based on distance: " + distance.toFixed(2) + " km");
+            } catch (e) {
+                console.error("Error updating delivery fees: ", e);
+            }
+        }
+        
+        // Calculate delivery fee based on distance
+        function calculateDeliveryFee(distance) {
+            var baseFee = 0;
+            
+            // For distances less than 1 km
+            if (distance <= 1) {
+                baseFee = 20;
+            } 
+            // For distances between 1-3 km
+            else if (distance <= 3) {
+                baseFee = 40;
+            }
+            // For distances between 3-5 km
+            else if (distance <= 5) {
+                baseFee = 60;
+            }
+            // For distances between 5-8 km
+            else if (distance <= 8) {
+                baseFee = 80;
+            }
+            // For distances over 8 km
+            else {
+                baseFee = 100 + Math.ceil(distance - 8) * 10; // Additional 10 pesos per km beyond 8 km
+            }
+            
+            return baseFee;
+        }
+        
+        // Update selected delivery option and fee
+        function updateDeliveryOption(option) {
+            try {
+                // Get the appropriate fee based on option
+                var fee = 0;
+                
+                if (option === 'standard') {
+                    fee = parseFloat(document.getElementById('<%= StandardFeeLiteral.ClientID %>').textContent);
+                    // Hide scheduled time container
+                    document.getElementById('scheduledTimeContainer').style.display = 'none';
+                } else if (option === 'priority') {
+                    fee = parseFloat(document.getElementById('<%= PriorityFeeLiteral.ClientID %>').textContent);
+                    // Hide scheduled time container
+                    document.getElementById('scheduledTimeContainer').style.display = 'none';
+                } else if (option === 'scheduled') {
+                    fee = parseFloat(document.getElementById('<%= ScheduledFeeLiteral.ClientID %>').textContent);
+                    // Show scheduled time container
+                    document.getElementById('scheduledTimeContainer').style.display = 'block';
+                }
+                
+                // Ensure we have a valid fee (fallback to 0 if NaN)
+                if (isNaN(fee)) fee = 0;
+                
+                // Update hidden fields
+                document.getElementById('<%= DeliveryFeeHidden.ClientID %>').value = fee;
+                document.getElementById('<%= DeliveryTypeHidden.ClientID %>').value = option;
+                
+                // Update grand total
+                updateGrandTotal();
+                
+                console.log("Delivery option updated: " + option + ", Fee: PHP " + fee.toFixed(2));
+            } catch (e) {
+                console.error("Error updating delivery option: ", e);
+            }
+        }
+
+        // New function to update address coordinates from city dropdown
+        function updateAddressCoordinates() {
+            var cityDropDown = document.getElementById('<%= CityDropDown.ClientID %>');
+            var selectedValue = cityDropDown.options[cityDropDown.selectedIndex].value;
+            
+            if (selectedValue) {
+                var parts = selectedValue.split(',');
+                if (parts.length === 3) {
+                    var cityName = parts[0];
+                    var lat = parseFloat(parts[1]);
+                    var lng = parseFloat(parts[2]);
+                    
+                    // Store coordinates in hidden field
+                    document.getElementById('<%= AddressCoordinatesField.ClientID %>').value = lat + ',' + lng;
+                    document.getElementById('selectedLocationText').textContent = cityName;
+                    
+                    // Show the map preview container
+                    document.getElementById('mapPreviewContainer').style.display = 'block';
+                    
+                    // Calculate distance and delivery fee
+                    calculateDistanceFromCoordinates(lat, lng);
+                }
+            } else {
+                // Hide map preview if no city is selected
+                document.getElementById('mapPreviewContainer').style.display = 'none';
+            }
         }
     </script>
 </asp:Content>
