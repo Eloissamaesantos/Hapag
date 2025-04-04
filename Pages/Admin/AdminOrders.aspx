@@ -148,7 +148,10 @@
                     
         <!-- Search and Filter Controls -->
         <div class="search-filter-container">
-            <asp:TextBox ID="SearchBox" runat="server" CssClass="search-box" placeholder="Search orders..."></asp:TextBox>
+            <asp:TextBox ID="SearchBox" runat="server" CssClass="search-box"></asp:TextBox>
+            <script type="text/javascript">
+                document.getElementById('<%= SearchBox.ClientID %>').setAttribute('placeholder', 'Search orders...');
+            </script>
             <asp:DropDownList ID="StatusDropDown" runat="server" CssClass="status-dropdown">
                 <asp:ListItem Text="All Status" Value=""></asp:ListItem>
                 <asp:ListItem Text="Pending" Value="Pending"></asp:ListItem>
@@ -156,10 +159,10 @@
                 <asp:ListItem Text="Completed" Value="Completed"></asp:ListItem>
                 <asp:ListItem Text="Cancelled" Value="Cancelled"></asp:ListItem>
             </asp:DropDownList>
-                    </div>
+        </div>
                     
                     <div class="orders-container">
-            <asp:ListView ID="OrdersListView" runat="server">
+            <asp:ListView ID="OrdersListView" runat="server" OnItemCommand="OrdersListView_ItemCommand" OnItemDataBound="OrdersListView_ItemDataBound">
                 <LayoutTemplate>
                     <div class="orders-list">
                         <asp:PlaceHolder ID="itemPlaceholder" runat="server"></asp:PlaceHolder>
@@ -182,7 +185,7 @@
                                 <asp:Repeater ID="OrderItemsRepeater" runat="server" DataSource='<%# GetOrderItems(Eval("order_id")) %>'>
                                             <ItemTemplate>
                                                 <div class="order-item">
-                                            <span class="item-name"><%# Eval("item_name") %></span>
+                                            <span class="item-name"><%# Eval("name") %></span>
                                             <span class="item-quantity">x<%# Eval("quantity") %></span>
                                             <span class="item-price">PHP <%# Format(Eval("price"), "0.00") %></span>
                             </div>
